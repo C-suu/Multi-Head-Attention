@@ -35,89 +35,62 @@
 ### （3）带有详细注释的代码
 
 ```python
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import math
+from math import sqrt                 # 01. 从数学库导入平方根计算函数
+import torch                          # 02. 导入PyTorch张量运算基础库
+import torch.nn as nn                 # 03. 导入PyTorch神经网络核心模块
 
-class MultiHeadAttention(nn.Module):
-    def __init__(self, heads, d_model, dropout=0.1):
-        super().__init__()
-        # 保存输入的特征总维度 d_model
-        self.d_model = d_model
-        # 计算每个注意力头的特征维度 d_k，通过整除实现
-        self.d_k = d_model // heads
-        # 保存注意力头的总数量
-        self.h = heads
+class MultiHeadAttention(nn.Module):  # 04. 定义多头注意力类，继承自神经网络基础类
+    def __init__(self, heads, d_model, dropout=0.1): # 05. 初始化方法，接收头数、特征总维度和失活率
+        super(MultiHeadAttention, self).__init__()   # 06. 调用父类的初始化方法
+        self.d_model = d_model        # 07. 将输入的特征总维度保存为类的属性
+        self.d_k = d_model // heads   # 08. 计算每个注意力头的特征维度（总维度整除头数）
+        self.h = heads                # 09. 将注意力头的总数量保存为类的属性
         
-        # 定义用于生成 Query 的线性映射网络层
-        self.q_linear = nn.Linear(d_model, d_model)  
-        # 定义用于生成 Value 的线性映射网络层
-        self.v_linear = nn.Linear(d_model, d_model)  
-        # 定义用于生成 Key 的线性映射网络层
-        self.k_linear = nn.Linear(d_model, d_model)  
+        self.q_linear = nn.Linear(d_model, d_model)  # 10. 定义用于生成Query的全连接映射层
+        self.v_linear = nn.Linear(d_model, d_model)  # 11. 定义用于生成Value的全连接映射层
+        self.k_linear = nn.Linear(d_model, d_model)  # 12. 定义用于生成Key的全连接映射层
         
-        # 定义 Dropout 层，用于在训练时随机丢弃部分神经元以防止过拟合
-        self.dropout = nn.Dropout(dropout)
-        # 定义输出的线性映射网络层，用于整合多头拼接后的特征
-        self.out = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)           # 13. 定义Dropout层，训练时随机丢弃以防过拟合
+        self.out = nn.Linear(d_model, d_model)       # 14. 定义输出的全连接映射层，用于整合多头拼接特征
 
-    def attention(self, q, k, v, d_k, mask=None, dropout=None):
-        # 1. 计算未经处理的注意力得分矩阵，公式为 Q * K^T / sqrt(d_k)
-        # q 的维度: (batch_size, heads, seq_len, d_k)
-        # k 的转置维度: (batch_size, heads, d_k, seq_len)
-        # 相乘后 scores 维度: (batch_size, heads, seq_len_q, seq_len_k)
-        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_k)
+    def attention(self, q, k, v, d_k, mask=None, dropout=None): # 15. 定义内部核心注意力计算方法
+        # 16. 计算注意力得分：Q乘上转置后的K，并除以缩放因子。结果形状: (batch, heads, seq_q, seq_k)
+        scores = torch.matmul(q, k.transpose(-2, -1)) / sqrt(d_k)
         
-        # 2. 处理掩码逻辑
-        if mask is not None:
-            # 在掩码张量的指定位置增加一个维度，使其能与多头形状广播对齐
-            mask = mask.unsqueeze(1)  
-            # 将掩码中值为0的位置，在得分矩阵中替换为极小值（-1e9）
-            scores = scores.masked_fill(mask == 0, -1e9)  
+        if mask is not None:                         # 17. 判断是否传入了掩码张量
+            mask = mask.unsqueeze(1)                 # 18. 增加一个维度，使掩码能与多头形状广播对齐
+            scores = scores.masked_fill(mask == 0, -1e9) # 19. 将掩码中值为0的位置在得分矩阵中替换为极小值
             
-        # 3. 在最后一个维度上应用 Softmax 函数，将得分转换为概率分布
-        scores = F.softmax(scores, dim=-1)
+        scores = torch.softmax(scores, dim=-1)       # 20. 对最后一个维度执行Softmax归一化，生成概率分布权重
         
-        # 4. 如果传入了 dropout 模块，则对生成的注意力权重应用随机丢弃
-        if dropout is not None:
-            scores = dropout(scores)
-        
-        # 5. 将注意力权重矩阵与 Value 矩阵进行矩阵乘法，得到加权求和结果
-        # scores 维度: (batch_size, heads, seq_len_q, seq_len_k)
-        # v 维度: (batch_size, heads, seq_len_k, d_k)
-        # output 维度: (batch_size, heads, seq_len_q, d_k)
-        output = torch.matmul(scores, v)
-        return output
+        if dropout is not None:                      # 21. 判断是否传入了随机失活(dropout)模块
+            scores = dropout(scores)                 # 22. 对生成的注意力权重应用随机丢弃
+            
+        output = torch.matmul(scores, v)             # 23. 注意力权重矩阵与Value矩阵相乘进行特征加权求和
+        return output                                # 24. 返回单次注意力聚合计算完毕的张量
 
-    def forward(self, q, k, v, mask=None):
-        # 获取当前输入批次的大小
-        bs = q.size(0)  
+    def forward(self, q, k, v, mask=None):           # 25. 定义前向传播函数
+        bs = q.size(0)                               # 26. 获取输入张量的批次大小(batch_size)
         
-        # 1. 将输入的原始序列特征分别送入三个线性层进行空间转换
-        k = self.k_linear(k)  
-        q = self.q_linear(q)  
-        v = self.v_linear(v)  
+        k = self.k_linear(k)                         # 27. 将输入映射为Key矩阵，形状: (bs, seq_len, d_model)
+        q = self.q_linear(q)                         # 28. 将输入映射为Query矩阵，形状: (bs, seq_len, d_model)
+        v = self.v_linear(v)                         # 29. 将输入映射为Value矩阵，形状: (bs, seq_len, d_model)
         
-        # 2. 核心维度重构：切分多头
-        # 先利用 view 将 (bs, seq_len, d_model) 拆分为 (bs, seq_len, heads, d_k)
-        # 然后利用 transpose 交换 seq_len 和 heads 的位置，变为 (bs, heads, seq_len, d_k)
+        # 30. 重构Key维度：利用view切分多头，再用transpose交换维度变为 (bs, heads, seq_len, d_k)
         k = k.view(bs, -1, self.h, self.d_k).transpose(1, 2)
+        # 31. 重构Query维度：利用view切分多头，再用transpose交换维度变为 (bs, heads, seq_len, d_k)
         q = q.view(bs, -1, self.h, self.d_k).transpose(1, 2)
+        # 32. 重构Value维度：利用view切分多头，再用transpose交换维度变为 (bs, heads, seq_len, d_k)
         v = v.view(bs, -1, self.h, self.d_k).transpose(1, 2)
         
-        # 3. 调用内部的 attention 方法计算多头注意力结果
-        # 返回张量维度为 (batch_size, heads, seq_len_q, d_k)
+        # 33. 调用内部attention方法计算多头注意力结果，返回形状为 (bs, heads, seq_len, d_k)
         scores = self.attention(q, k, v, self.d_k, mask, self.dropout)
         
-        # 4. 特征拼接与还原
-        # 先利用 transpose 将 heads 和 seq_len 换回原位: (bs, seq_len, heads, d_k)
-        # 调用 contiguous 确保内存连续，最后 view 操作将其展平合并回 d_model 维度: (bs, seq_len, d_model)
+        # 34. 维度还原与拼接：换回原位并确保存储连续，最后展平合并回总维度 (bs, seq_len, d_model)
         concat = scores.transpose(1, 2).contiguous().view(bs, -1, self.d_model)
         
-        # 5. 将合并后的特征输入到最后的线性映射层，得到最终输出
-        output = self.out(concat)
-        return output
+        output = self.out(concat)                    # 35. 将合并后的特征输入最终线性映射层
+        return output                                # 36. 返回最终多头注意力处理完毕的输出张量
 
 ```
 
