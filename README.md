@@ -35,46 +35,46 @@
 ### （3）带有详细注释的代码
 
 ```python
-from math import sqrt                 # 01. 从数学库导入平方根计算函数
-import torch                          # 02. 导入PyTorch张量运算基础库
-import torch.nn as nn                 # 03. 导入PyTorch神经网络核心模块
+from math import sqrt            # 01. 从数学库导入平方根计算函数
+import torch                     # 02. 导入PyTorch张量运算基础库
+import torch.nn as nn            # 03. 导入PyTorch神经网络核心模块
 
 class MultiHeadAttention(nn.Module):  # 04. 定义多头注意力类，继承自神经网络基础类
     def __init__(self, heads, d_model, dropout=0.1): # 05. 初始化方法，接收头数、特征总维度和失活率
         super(MultiHeadAttention, self).__init__()   # 06. 调用父类的初始化方法
-        self.d_model = d_model        # 07. 将输入的特征总维度保存为类的属性
-        self.d_k = d_model // heads   # 08. 计算每个注意力头的特征维度（总维度整除头数）
-        self.h = heads                # 09. 将注意力头的总数量保存为类的属性
+        self.d_model = d_model      # 07. 将输入的特征总维度保存为类的属性
+        self.d_k = d_model // heads # 08. 计算每个注意力头的特征维度（总维度整除头数）
+        self.h = heads              # 09. 将注意力头的总数量保存为类的属性
         
-        self.q_linear = nn.Linear(d_model, d_model)  # 10. 定义用于生成Query的全连接映射层
-        self.v_linear = nn.Linear(d_model, d_model)  # 11. 定义用于生成Value的全连接映射层
-        self.k_linear = nn.Linear(d_model, d_model)  # 12. 定义用于生成Key的全连接映射层
+        self.q_linear = nn.Linear(d_model, d_model) # 10. 定义用于生成Query的全连接映射层
+        self.v_linear = nn.Linear(d_model, d_model) # 11. 定义用于生成Value的全连接映射层
+        self.k_linear = nn.Linear(d_model, d_model) # 12. 定义用于生成Key的全连接映射层
         
-        self.dropout = nn.Dropout(dropout)           # 13. 定义Dropout层，训练时随机丢弃以防过拟合
-        self.out = nn.Linear(d_model, d_model)       # 14. 定义输出的全连接映射层，用于整合多头拼接特征
+        self.dropout = nn.Dropout(dropout)        # 13. 定义Dropout层，训练时随机丢弃以防过拟合
+        self.out = nn.Linear(d_model, d_model)    # 14. 定义输出的全连接映射层，用于整合多头拼接特征
 
     def attention(self, q, k, v, d_k, mask=None, dropout=None): # 15. 定义内部核心注意力计算方法
         # 16. 计算注意力得分：Q乘上转置后的K，并除以缩放因子。结果形状: (batch, heads, seq_q, seq_k)
         scores = torch.matmul(q, k.transpose(-2, -1)) / sqrt(d_k)
         
-        if mask is not None:                         # 17. 判断是否传入了掩码张量
-            mask = mask.unsqueeze(1)                 # 18. 增加一个维度，使掩码能与多头形状广播对齐
+        if mask is not None:                       # 17. 判断是否传入了掩码张量
+            mask = mask.unsqueeze(1)               # 18. 增加一个维度，使掩码能与多头形状广播对齐
             scores = scores.masked_fill(mask == 0, -1e9) # 19. 将掩码中值为0的位置在得分矩阵中替换为极小值
             
-        scores = torch.softmax(scores, dim=-1)       # 20. 对最后一个维度执行Softmax归一化，生成概率分布权重
+        scores = torch.softmax(scores, dim=-1)     # 20. 对最后一个维度执行Softmax归一化，生成概率分布权重
         
-        if dropout is not None:                      # 21. 判断是否传入了随机失活(dropout)模块
-            scores = dropout(scores)                 # 22. 对生成的注意力权重应用随机丢弃
+        if dropout is not None:                    # 21. 判断是否传入了随机失活(dropout)模块
+            scores = dropout(scores)               # 22. 对生成的注意力权重应用随机丢弃
             
-        output = torch.matmul(scores, v)             # 23. 注意力权重矩阵与Value矩阵相乘进行特征加权求和
-        return output                                # 24. 返回单次注意力聚合计算完毕的张量
+        output = torch.matmul(scores, v)           # 23. 注意力权重矩阵与Value矩阵相乘进行特征加权求和
+        return output                              # 24. 返回单次注意力聚合计算完毕的张量
 
-    def forward(self, q, k, v, mask=None):           # 25. 定义前向传播函数
-        bs = q.size(0)                               # 26. 获取输入张量的批次大小(batch_size)
+    def forward(self, q, k, v, mask=None):         # 25. 定义前向传播函数
+        bs = q.size(0)                             # 26. 获取输入张量的批次大小(batch_size)
         
-        k = self.k_linear(k)                    # 27. 将输入映射为Key矩阵，形状: (bs, seq_len, d_model)
-        q = self.q_linear(q)                    # 28. 将输入映射为Query矩阵，形状: (bs, seq_len, d_model)
-        v = self.v_linear(v)                    # 29. 将输入映射为Value矩阵，形状: (bs, seq_len, d_model)
+        k = self.k_linear(k)                  # 27. 将输入映射为Key矩阵，形状: (bs, seq_len, d_model)
+        q = self.q_linear(q)                  # 28. 将输入映射为Query矩阵，形状: (bs, seq_len, d_model)
+        v = self.v_linear(v)                  # 29. 将输入映射为Value矩阵，形状: (bs, seq_len, d_model)
         
         # 30. 重构Key维度：利用view切分多头，再用transpose交换维度变为 (bs, heads, seq_len, d_k)
         k = k.view(bs, -1, self.h, self.d_k).transpose(1, 2)
@@ -89,8 +89,8 @@ class MultiHeadAttention(nn.Module):  # 04. 定义多头注意力类，继承自
         # 34. 维度还原与拼接：换回原位并确保存储连续，最后展平合并回总维度 (bs, seq_len, d_model)
         concat = scores.transpose(1, 2).contiguous().view(bs, -1, self.d_model)
         
-        output = self.out(concat)                    # 35. 将合并后的特征输入最终线性映射层
-        return output                                # 36. 返回最终多头注意力处理完毕的输出张量
+        output = self.out(concat)            # 35. 将合并后的特征输入最终线性映射层
+        return output                        # 36. 返回最终多头注意力处理完毕的输出张量
 
 ```
 
