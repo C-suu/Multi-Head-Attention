@@ -72,9 +72,9 @@ class MultiHeadAttention(nn.Module):  # 04. 定义多头注意力类，继承自
     def forward(self, q, k, v, mask=None):           # 25. 定义前向传播函数
         bs = q.size(0)                               # 26. 获取输入张量的批次大小(batch_size)
         
-        k = self.k_linear(k)                         # 27. 将输入映射为Key矩阵，形状: (bs, seq_len, d_model)
-        q = self.q_linear(q)                         # 28. 将输入映射为Query矩阵，形状: (bs, seq_len, d_model)
-        v = self.v_linear(v)                         # 29. 将输入映射为Value矩阵，形状: (bs, seq_len, d_model)
+        k = self.k_linear(k)                    # 27. 将输入映射为Key矩阵，形状: (bs, seq_len, d_model)
+        q = self.q_linear(q)                    # 28. 将输入映射为Query矩阵，形状: (bs, seq_len, d_model)
+        v = self.v_linear(v)                    # 29. 将输入映射为Value矩阵，形状: (bs, seq_len, d_model)
         
         # 30. 重构Key维度：利用view切分多头，再用transpose交换维度变为 (bs, heads, seq_len, d_k)
         k = k.view(bs, -1, self.h, self.d_k).transpose(1, 2)
